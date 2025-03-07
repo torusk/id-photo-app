@@ -69,6 +69,8 @@ const App = () => {
   const [layoutImageUrl, setLayoutImageUrl] = useState(null);
   const [step, setStep] = useState(1); // 1: upload, 2: template selection, 3: crop, 4: result
   const [imageOrientation, setImageOrientation] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
 
   const imageRef = useRef(null);
   const rectRef = useRef(null);
@@ -88,6 +90,8 @@ const App = () => {
     const file = e.target.files[0];
     if (!file) return;
 
+    setLoading(true);
+
     const reader = new FileReader();
     reader.onload = () => {
       const img = new window.Image();
@@ -97,6 +101,7 @@ const App = () => {
         setImageOrientation(orientation);
         setImage(img);
         setStep(2);
+        setLoading(false);
       };
     };
     reader.readAsDataURL(file);
@@ -110,12 +115,28 @@ const App = () => {
     const imgWidth = image.width;
     const imgHeight = image.height;
 
+    // Calculate a size that preserves the aspect ratio but fits within the image
+    const aspectRatio = template.widthPx / template.heightPx;
+
+    // Choose a suitable initial size based on image dimensions
+    let cropWidth, cropHeight;
+
+    if (imgWidth / imgHeight > aspectRatio) {
+      // Image is wider proportionally than the template
+      cropHeight = imgHeight * 0.8; // Use 80% of image height
+      cropWidth = cropHeight * aspectRatio;
+    } else {
+      // Image is taller proportionally than the template
+      cropWidth = imgWidth * 0.8; // Use 80% of image width
+      cropHeight = cropWidth / aspectRatio;
+    }
+
     // Initial position: center of the image
     setCropRect({
-      x: imgWidth / 2 - template.widthPx / 2,
-      y: imgHeight / 2 - template.heightPx / 2,
-      width: template.widthPx,
-      height: template.heightPx,
+      x: imgWidth / 2 - cropWidth / 2,
+      y: imgHeight / 2 - cropHeight / 2,
+      width: cropWidth,
+      height: cropHeight,
       templateKey,
     });
 
@@ -123,9 +144,17 @@ const App = () => {
     setStep(3);
   };
 
+  // Handle zoom in/out for better control
+  const handleZoomChange = (e) => {
+    const newZoom = parseFloat(e.target.value);
+    setZoomLevel(newZoom);
+  };
+
   // Handle crop execution
   const handleCrop = () => {
     if (!cropRect || !imageRef.current) return;
+
+    setLoading(true);
 
     // Create canvas for cropping
     const canvas = document.createElement("canvas");
@@ -141,11 +170,13 @@ const App = () => {
     const cropWidth = cropRect.width * scaleX;
     const cropHeight = cropRect.height * scaleY;
 
-    // Set canvas size to match crop size
-    canvas.width = cropWidth;
-    canvas.height = cropHeight;
+    // Set canvas size to match the template's exact pixel dimensions
+    // This ensures the output is exactly the required size for the ID photo
+    const template = PHOTO_TEMPLATES_PX[cropRect.templateKey];
+    canvas.width = template.widthPx;
+    canvas.height = template.heightPx;
 
-    // Draw cropped image to canvas
+    // Draw cropped image to canvas, scaling to fit the exact template dimensions
     ctx.drawImage(
       image,
       cropX,
@@ -154,8 +185,8 @@ const App = () => {
       cropHeight,
       0,
       0,
-      cropWidth,
-      cropHeight
+      template.widthPx,
+      template.heightPx
     );
 
     // Convert canvas to data URL
@@ -163,11 +194,11 @@ const App = () => {
     setCroppedImageUrl(croppedUrl);
 
     // Generate L-size layout
-    generateLayout(croppedUrl);
+    generateLayout(croppedUrl, template);
   };
 
   // Generate L-size layout with multiple photos
-  const generateLayout = (croppedUrl) => {
+  const generateLayout = (croppedUrl, template) => {
     const canvas = document.createElement("canvas");
     canvas.width = L_SIZE_PX.width;
     canvas.height = L_SIZE_PX.height;
@@ -179,21 +210,15 @@ const App = () => {
 
     const img = new window.Image();
     img.onload = () => {
-      const template = PHOTO_TEMPLATES_PX[cropRect.templateKey];
-
-      // Calculate how many photos can fit in the L-size print
-      // This is similar to the Python implementation, calculating optimal layout
-
-      // Calculate margins and positions to place photos evenly
+      // Calculate optimal layout based on the Python implementation
       const photoWidth = template.widthPx;
       const photoHeight = template.heightPx;
 
-      // Calculate how many photos can fit horizontally and vertically
-      // With proper spacing between them
+      // Calculate margins and spacing (similar to Python implementation)
       const horizontalGap = mmToPixels(3); // 3mm gap between photos
       const verticalGap = mmToPixels(3); // 3mm gap between photos
 
-      // Calculate max number of photos that can fit (with margins)
+      // Calculate optimal number of rows and columns
       const maxHorizontal = Math.floor(
         (L_SIZE_PX.width + horizontalGap) / (photoWidth + horizontalGap)
       );
@@ -201,15 +226,16 @@ const App = () => {
         (L_SIZE_PX.height + verticalGap) / (photoHeight + verticalGap)
       );
 
-      // Limit to 2x2 layout for standard ID photos (the Python implementation uses 2x2)
+      // Determine the optimal layout based on photo size
+      // For standard ID photos, aim for a 2x2 grid if possible
       const cols = Math.min(maxHorizontal, 2);
       const rows = Math.min(maxVertical, 2);
 
-      // Calculate total width and height of all photos including gaps
+      // Calculate total width and height with gaps
       const totalWidth = cols * photoWidth + (cols - 1) * horizontalGap;
       const totalHeight = rows * photoHeight + (rows - 1) * verticalGap;
 
-      // Calculate starting positions to center the layout
+      // Center the layout on the L-size print
       const startX = (L_SIZE_PX.width - totalWidth) / 2;
       const startY = (L_SIZE_PX.height - totalHeight) / 2;
 
@@ -219,14 +245,58 @@ const App = () => {
           const x = startX + col * (photoWidth + horizontalGap);
           const y = startY + row * (photoHeight + verticalGap);
 
+          // Draw the image with the exact template dimensions
           ctx.drawImage(img, x, y, photoWidth, photoHeight);
+
+          // Draw thin border around each photo for cutting guidance
+          ctx.strokeStyle = "#dddddd";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, photoWidth, photoHeight);
         }
       }
+
+      // Add cutting guides on the margins (faint lines)
+      ctx.strokeStyle = "#eeeeee";
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([5, 5]); // Dashed line pattern
+
+      // Horizontal guide lines
+      for (let row = 0; row <= rows; row++) {
+        const y = startY + row * (photoHeight + verticalGap) - verticalGap / 2;
+        if (row > 0) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(L_SIZE_PX.width, y);
+          ctx.stroke();
+        }
+      }
+
+      // Vertical guide lines
+      for (let col = 0; col <= cols; col++) {
+        const x =
+          startX + col * (photoWidth + horizontalGap) - horizontalGap / 2;
+        if (col > 0) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, L_SIZE_PX.height);
+          ctx.stroke();
+        }
+      }
+
+      // Add print specifications at the bottom
+      ctx.setLineDash([]); // Reset line style
+      ctx.fillStyle = "#888888";
+      ctx.font = "12px sans-serif";
+      const specText = `${template.description} × ${rows * cols}枚 | L判 (${
+        L_SIZE.width
+      }mm×${L_SIZE.height}mm) | 300dpi`;
+      ctx.fillText(specText, 10, L_SIZE_PX.height - 10);
 
       // Convert the layout to a data URL
       const layoutUrl = canvas.toDataURL("image/png");
       setLayoutImageUrl(layoutUrl);
       setStep(4);
+      setLoading(false);
     };
     img.src = croppedUrl;
   };
@@ -238,23 +308,27 @@ const App = () => {
     }
   };
 
-  // Handle transformer transform
+  // Handle transformer transform with fixed aspect ratio
   const handleTransform = () => {
     if (rectRef.current) {
       const rect = rectRef.current;
       const template = PHOTO_TEMPLATES_PX[cropRect.templateKey];
 
-      // Maintain aspect ratio
+      // Get current size with scale applied
+      const width = rect.width() * rect.scaleX();
+      const height = rect.height() * rect.scaleY();
+
+      // Maintain aspect ratio based on the template
       const aspectRatio = template.widthPx / template.heightPx;
 
-      // Get current scale and size
-      const width = rect.width() * rect.scaleX();
-      const height = width / aspectRatio;
+      // Determine new width and height while preserving aspect ratio
+      let newWidth = width;
+      let newHeight = newWidth / aspectRatio;
 
       // Update rectangle with new dimensions
       rect.setAttrs({
-        width: width,
-        height: height,
+        width: newWidth,
+        height: newHeight,
         scaleX: 1,
         scaleY: 1,
       });
@@ -264,10 +338,26 @@ const App = () => {
         ...cropRect,
         x: rect.x(),
         y: rect.y(),
-        width: width,
-        height: height,
+        width: newWidth,
+        height: newHeight,
       });
     }
+  };
+
+  // Ensure crop rectangle stays within image boundaries
+  const boundFunc = (oldBox, newBox) => {
+    const template = PHOTO_TEMPLATES_PX[cropRect.templateKey];
+    const aspectRatio = template.widthPx / template.heightPx;
+
+    // Maintain aspect ratio
+    newBox.height = newBox.width / aspectRatio;
+
+    // Set minimum size
+    if (newBox.width < 30 || newBox.height < 30) {
+      return oldBox;
+    }
+
+    return newBox;
   };
 
   // Handle going back
@@ -285,6 +375,7 @@ const App = () => {
     setCroppedImageUrl(null);
     setLayoutImageUrl(null);
     setImageOrientation(null);
+    setZoomLevel(1);
     setStep(1);
   };
 
@@ -317,6 +408,12 @@ const App = () => {
     ? calculateDisplayDimensions(image, 800, 600)
     : { width: 0, height: 0 };
 
+  // Apply zoom to displayed stage
+  const zoomedStageSize = {
+    width: stageSize.width * zoomLevel,
+    height: stageSize.height * zoomLevel,
+  };
+
   return (
     <div className="app-container">
       <h1>証明写真作成アプリ</h1>
@@ -324,11 +421,32 @@ const App = () => {
         ※画像はブラウザ上でのみ処理され、サーバーには保存されません
       </p>
 
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <p>処理中...</p>
+        </div>
+      )}
+
       {step === 1 && (
         <div className="upload-container">
           <h2>ステップ1: 画像をアップロード</h2>
           <p>縦向き・横向きどちらの写真も対応しています。</p>
-          <input type="file" accept="image/*" onChange={handleImageUpload} />
+          <div className="upload-box">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              id="file-upload"
+              className="file-input"
+            />
+            <label htmlFor="file-upload" className="file-label">
+              画像を選択する
+            </label>
+          </div>
+          <p className="upload-hint">
+            推奨: 高解像度の写真を使用すると品質が向上します
+          </p>
         </div>
       )}
 
@@ -348,8 +466,19 @@ const App = () => {
                 onClick={() => handleTemplateSelect(key)}
                 className="template-button"
               >
-                {template.name}
-                <div className="template-size">{template.description}</div>
+                <div className="template-preview">
+                  <div
+                    className="template-preview-box"
+                    style={{
+                      width: `${template.width * 2}px`,
+                      height: `${template.height * 2}px`,
+                    }}
+                  ></div>
+                </div>
+                <div className="template-info">
+                  <span className="template-name">{template.name}</span>
+                  <span className="template-size">{template.description}</span>
+                </div>
               </button>
             ))}
           </div>
@@ -362,73 +491,97 @@ const App = () => {
       {step === 3 && (
         <div className="crop-container">
           <h2>ステップ3: 顔の位置を調整</h2>
-          <p>赤枠の位置・サイズを調整して顔の位置を合わせてください。</p>
-          <div className="stage-container">
-            <Stage
-              width={stageSize.width}
-              height={stageSize.height}
-              ref={stageRef}
+          <p className="crop-instruction">
+            赤枠の位置・サイズを調整して顔の位置を合わせてください。
+          </p>
+
+          <div className="zoom-control">
+            <span>縮小</span>
+            <input
+              type="range"
+              min="0.5"
+              max="2"
+              step="0.1"
+              value={zoomLevel}
+              onChange={handleZoomChange}
+              className="zoom-slider"
+            />
+            <span>拡大</span>
+          </div>
+
+          <div className="stage-container" style={{ overflow: "auto" }}>
+            <div
+              style={{
+                width: zoomedStageSize.width,
+                height: zoomedStageSize.height,
+              }}
             >
-              <Layer>
-                <KonvaImage
-                  ref={imageRef}
-                  image={image}
-                  width={stageSize.width}
-                  height={stageSize.height}
-                />
-                {cropRect && (
-                  <Rect
-                    ref={rectRef}
-                    x={cropRect.x * (stageSize.width / image.width)}
-                    y={cropRect.y * (stageSize.height / image.height)}
-                    width={cropRect.width * (stageSize.width / image.width)}
-                    height={cropRect.height * (stageSize.height / image.height)}
-                    stroke="red"
-                    strokeWidth={2}
-                    draggable
-                    onTransform={handleTransform}
-                    onDragEnd={() => {
-                      setCropRect({
-                        ...cropRect,
-                        x:
-                          rectRef.current.x() / (stageSize.width / image.width),
-                        y:
-                          rectRef.current.y() /
-                          (stageSize.height / image.height),
-                      });
-                    }}
+              <Stage
+                width={zoomedStageSize.width}
+                height={zoomedStageSize.height}
+                ref={stageRef}
+                scale={{ x: zoomLevel, y: zoomLevel }}
+              >
+                <Layer>
+                  <KonvaImage
+                    ref={imageRef}
+                    image={image}
+                    width={stageSize.width}
+                    height={stageSize.height}
                   />
-                )}
-                <Transformer
-                  ref={transformerRef}
-                  boundBoxFunc={(oldBox, newBox) => {
-                    // Set minimum size
-                    if (newBox.width < 30 || newBox.height < 30) {
-                      return oldBox;
-                    }
-
-                    // Maintain aspect ratio
-                    const template = PHOTO_TEMPLATES_PX[cropRect.templateKey];
-                    const aspectRatio = template.widthPx / template.heightPx;
-
-                    newBox.height = newBox.width / aspectRatio;
-
-                    return newBox;
-                  }}
-                  enabledAnchors={[
-                    "top-left",
-                    "top-right",
-                    "bottom-left",
-                    "bottom-right",
-                  ]}
-                  rotateEnabled={false}
-                />
-              </Layer>
-            </Stage>
+                  {cropRect && (
+                    <Rect
+                      ref={rectRef}
+                      x={cropRect.x * (stageSize.width / image.width)}
+                      y={cropRect.y * (stageSize.height / image.height)}
+                      width={cropRect.width * (stageSize.width / image.width)}
+                      height={
+                        cropRect.height * (stageSize.height / image.height)
+                      }
+                      stroke="red"
+                      strokeWidth={2}
+                      draggable
+                      onTransform={handleTransform}
+                      onDragEnd={() => {
+                        setCropRect({
+                          ...cropRect,
+                          x:
+                            rectRef.current.x() /
+                            (stageSize.width / image.width),
+                          y:
+                            rectRef.current.y() /
+                            (stageSize.height / image.height),
+                        });
+                      }}
+                    />
+                  )}
+                  <Transformer
+                    ref={transformerRef}
+                    boundBoxFunc={boundFunc}
+                    enabledAnchors={[
+                      "top-left",
+                      "top-right",
+                      "bottom-left",
+                      "bottom-right",
+                    ]}
+                    rotateEnabled={false}
+                  />
+                </Layer>
+              </Stage>
+            </div>
+          </div>
+          <div className="photo-guidelines">
+            <h3>証明写真のガイドライン</h3>
+            <ul className="guidelines-list">
+              <li>顔が枠の中央に位置するよう調整してください</li>
+              <li>顔の上部から顎までが写真の60-70%程度になると良いでしょう</li>
+              <li>背景は白または薄い色が理想的です</li>
+              <li>明るく鮮明な照明で撮影された写真を使用してください</li>
+            </ul>
           </div>
           <div className="button-container">
             <button onClick={handleCrop} className="crop-button">
-              クロップ
+              クロップして完成
             </button>
             <button onClick={handleBack} className="back-button">
               戻る
@@ -440,32 +593,45 @@ const App = () => {
       {step === 4 && layoutImageUrl && (
         <div className="result-container">
           <h2>ステップ4: 証明写真の完成</h2>
-          <p>
+          <p className="result-instruction">
             以下の画像をダウンロードして、コンビニなどでL判としてプリントしてください。
           </p>
           <div className="result-images">
             <div className="cropped-image-container">
               <h3>クロップした画像</h3>
-              <img
-                src={croppedImageUrl}
-                alt="クロップした証明写真"
-                className="result-img"
-              />
+              <div className="img-wrapper">
+                <img
+                  src={croppedImageUrl}
+                  alt="クロップした証明写真"
+                  className="result-img"
+                />
+              </div>
               <p className="photo-info">
                 {selectedTemplate?.description} 規格サイズ
               </p>
             </div>
             <div className="layout-image-container">
               <h3>L判レイアウト</h3>
-              <img
-                src={layoutImageUrl}
-                alt="L判レイアウト"
-                className="result-img"
-              />
+              <div className="img-wrapper">
+                <img
+                  src={layoutImageUrl}
+                  alt="L判レイアウト"
+                  className="result-img"
+                />
+              </div>
               <p className="layout-preview">
                 L判（89mm×127mm）にちょうど収まるようレイアウトされています
               </p>
             </div>
+          </div>
+          <div className="print-instructions">
+            <h3>プリント手順</h3>
+            <ol>
+              <li>下の「画像をダウンロード」ボタンをクリックして保存</li>
+              <li>コンビニのマルチコピー機やプリントサービスを利用</li>
+              <li>「L判」サイズを選択し、「等倍」または「原寸」でプリント</li>
+              <li>点線に沿って切り取れば規格サイズの証明写真の完成です</li>
+            </ol>
           </div>
           <div className="button-container">
             <button onClick={handleDownload} className="download-button">
