@@ -9,32 +9,56 @@ import {
 import { saveAs } from "file-saver";
 import "./App.css";
 
-// 証明写真サイズ定義（実際のピクセル値に変換）
+// Define ID photo sizes in mm (standard sizes in Japan)
 const PHOTO_TEMPLATES = {
   license: {
     name: "運転免許証用",
-    width: 240,
-    height: 300,
+    width: 24,
+    height: 30,
     description: "2.4cm×3.0cm",
   },
   resume: {
     name: "履歴書・TOEIC用",
-    width: 300,
-    height: 400,
+    width: 30,
+    height: 40,
     description: "3.0cm×4.0cm",
   },
   mynumber: {
     name: "マイナンバー用",
-    width: 350,
-    height: 450,
+    width: 35,
+    height: 45,
     description: "3.5cm×4.5cm",
   },
 };
 
-// L判サイズ定義（300dpi換算）
+// L-size print dimensions in mm
 const L_SIZE = {
-  width: 1050, // 89mm × 300dpi / 25.4 ≈ 1050px
-  height: 1500, // 127mm × 300dpi / 25.4 ≈ 1500px
+  width: 89,
+  height: 127,
+};
+
+// DPI (dots per inch) for conversion from mm to pixels
+const DPI = 300;
+
+// Convert mm to pixels at specified DPI
+const mmToPixels = (mm) => Math.round((mm * DPI) / 25.4);
+
+// Convert photo templates and L-size to pixels
+const PHOTO_TEMPLATES_PX = Object.entries(PHOTO_TEMPLATES).reduce(
+  (acc, [key, template]) => {
+    acc[key] = {
+      ...template,
+      widthPx: mmToPixels(template.width),
+      heightPx: mmToPixels(template.height),
+    };
+    return acc;
+  },
+  {}
+);
+
+const L_SIZE_PX = {
+  width: mmToPixels(L_SIZE.width),
+  height: mmToPixels(L_SIZE.height),
 };
 
 const App = () => {
@@ -43,15 +67,15 @@ const App = () => {
   const [cropRect, setCropRect] = useState(null);
   const [croppedImageUrl, setCroppedImageUrl] = useState(null);
   const [layoutImageUrl, setLayoutImageUrl] = useState(null);
-  const [step, setStep] = useState(1); // 1: 画像アップロード, 2: テンプレート選択, 3: クロップ, 4: 結果表示
-  const [imageOrientation, setImageOrientation] = useState(null); // 'portrait' または 'landscape'
+  const [step, setStep] = useState(1); // 1: upload, 2: template selection, 3: crop, 4: result
+  const [imageOrientation, setImageOrientation] = useState(null);
 
   const imageRef = useRef(null);
   const rectRef = useRef(null);
   const transformerRef = useRef(null);
   const stageRef = useRef(null);
 
-  // トランスフォーマーをアタッチする
+  // Attach transformer to the rect
   useEffect(() => {
     if (rectRef.current && transformerRef.current) {
       transformerRef.current.nodes([rectRef.current]);
@@ -59,7 +83,7 @@ const App = () => {
     }
   }, [cropRect]);
 
-  // 画像アップロードハンドラー
+  // Handle image upload
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -69,7 +93,6 @@ const App = () => {
       const img = new window.Image();
       img.src = reader.result;
       img.onload = () => {
-        // 画像の向きを設定
         const orientation = img.width > img.height ? "landscape" : "portrait";
         setImageOrientation(orientation);
         setImage(img);
@@ -79,20 +102,20 @@ const App = () => {
     reader.readAsDataURL(file);
   };
 
-  // テンプレート選択ハンドラー
+  // Handle template selection
   const handleTemplateSelect = (templateKey) => {
-    const template = PHOTO_TEMPLATES[templateKey];
+    const template = PHOTO_TEMPLATES_PX[templateKey];
 
-    // 画像の中心に赤枠を配置
+    // Calculate initial crop rectangle position and size
     const imgWidth = image.width;
     const imgHeight = image.height;
 
-    // 赤枠の初期サイズと位置を設定
+    // Initial position: center of the image
     setCropRect({
-      x: imgWidth / 2 - template.width / 2,
-      y: imgHeight / 2 - template.height / 2,
-      width: template.width,
-      height: template.height,
+      x: imgWidth / 2 - template.widthPx / 2,
+      y: imgHeight / 2 - template.heightPx / 2,
+      width: template.widthPx,
+      height: template.heightPx,
       templateKey,
     });
 
@@ -100,28 +123,29 @@ const App = () => {
     setStep(3);
   };
 
-  // クロップ実行ハンドラー
+  // Handle crop execution
   const handleCrop = () => {
     if (!cropRect || !imageRef.current) return;
 
-    // キャンバスを作成
+    // Create canvas for cropping
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
 
-    // クロップする領域の設定
+    // Calculate scale factors
     const scaleX = image.width / imageRef.current.attrs.width;
     const scaleY = image.height / imageRef.current.attrs.height;
 
+    // Calculate crop area
     const cropX = cropRect.x * scaleX;
     const cropY = cropRect.y * scaleY;
     const cropWidth = cropRect.width * scaleX;
     const cropHeight = cropRect.height * scaleY;
 
-    // キャンバスサイズをクロップサイズに合わせる
+    // Set canvas size to match crop size
     canvas.width = cropWidth;
     canvas.height = cropHeight;
 
-    // 画像をクロップしてキャンバスに描画
+    // Draw cropped image to canvas
     ctx.drawImage(
       image,
       cropX,
@@ -134,127 +158,126 @@ const App = () => {
       cropHeight
     );
 
-    // クロップした画像をURLに変換
-    const croppedUrl = canvas.toDataURL();
+    // Convert canvas to data URL
+    const croppedUrl = canvas.toDataURL("image/png");
     setCroppedImageUrl(croppedUrl);
 
-    // L判用の配置を生成
+    // Generate L-size layout
     generateLayout(croppedUrl);
   };
 
-  // L判レイアウト生成関数
+  // Generate L-size layout with multiple photos
   const generateLayout = (croppedUrl) => {
     const canvas = document.createElement("canvas");
-    canvas.width = L_SIZE.width;
-    canvas.height = L_SIZE.height;
+    canvas.width = L_SIZE_PX.width;
+    canvas.height = L_SIZE_PX.height;
     const ctx = canvas.getContext("2d");
 
-    // 背景を白に設定
+    // Set white background
     ctx.fillStyle = "white";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const img = new window.Image();
     img.onload = () => {
-      // テンプレート基準のサイズを取得
-      const template = PHOTO_TEMPLATES[cropRect.templateKey];
-      const photoAspectRatio = template.width / template.height;
+      const template = PHOTO_TEMPLATES_PX[cropRect.templateKey];
 
-      // レイアウト設計
-      // L判の向きに応じた最適な配置を計算
-      let photoWidth, photoHeight, cols, rows;
+      // Calculate how many photos can fit in the L-size print
+      // This is similar to the Python implementation, calculating optimal layout
 
-      // L判は常に縦向き (width < height)
-      const lSizeAspectRatio = L_SIZE.width / L_SIZE.height; // < 1 for portrait
+      // Calculate margins and positions to place photos evenly
+      const photoWidth = template.widthPx;
+      const photoHeight = template.heightPx;
 
-      // 画像のアスペクト比に基づいて最適な配置を決定
-      if (photoAspectRatio < 1) {
-        // 証明写真が縦長の場合
-        // L判に合わせて最大サイズを計算 (余白10%を確保)
-        const maxHeight = L_SIZE.height * 0.45; // 縦に2枚入るように
-        photoHeight = maxHeight;
-        photoWidth = photoHeight * photoAspectRatio;
+      // Calculate how many photos can fit horizontally and vertically
+      // With proper spacing between them
+      const horizontalGap = mmToPixels(3); // 3mm gap between photos
+      const verticalGap = mmToPixels(3); // 3mm gap between photos
 
-        // 縦2段、横は最大で何枚入るか計算
-        cols = Math.floor((L_SIZE.width * 0.9) / photoWidth);
-        cols = Math.min(cols, 2); // 最大2列まで
-        rows = 2;
-      } else {
-        // 証明写真が横長の場合 (珍しいが対応)
-        const maxWidth = L_SIZE.width * 0.45; // 横に2枚入るように
-        photoWidth = maxWidth;
-        photoHeight = photoWidth / photoAspectRatio;
+      // Calculate max number of photos that can fit (with margins)
+      const maxHorizontal = Math.floor(
+        (L_SIZE_PX.width + horizontalGap) / (photoWidth + horizontalGap)
+      );
+      const maxVertical = Math.floor(
+        (L_SIZE_PX.height + verticalGap) / (photoHeight + verticalGap)
+      );
 
-        // 横2列、縦は最大で何枚入るか計算
-        rows = Math.floor((L_SIZE.height * 0.9) / photoHeight);
-        rows = Math.min(rows, 2); // 最大2行まで
-        cols = 2;
-      }
+      // Limit to 2x2 layout for standard ID photos (the Python implementation uses 2x2)
+      const cols = Math.min(maxHorizontal, 2);
+      const rows = Math.min(maxVertical, 2);
 
-      // 余白計算
-      const totalWidth = cols * photoWidth;
-      const totalHeight = rows * photoHeight;
+      // Calculate total width and height of all photos including gaps
+      const totalWidth = cols * photoWidth + (cols - 1) * horizontalGap;
+      const totalHeight = rows * photoHeight + (rows - 1) * verticalGap;
 
-      const marginX = (L_SIZE.width - totalWidth) / (cols + 1);
-      const marginY = (L_SIZE.height - totalHeight) / (rows + 1);
+      // Calculate starting positions to center the layout
+      const startX = (L_SIZE_PX.width - totalWidth) / 2;
+      const startY = (L_SIZE_PX.height - totalHeight) / 2;
 
-      // 画像を配置
+      // Draw the photos in a grid
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
-          const x = marginX + (photoWidth + marginX) * col;
-          const y = marginY + (photoHeight + marginY) * row;
+          const x = startX + col * (photoWidth + horizontalGap);
+          const y = startY + row * (photoHeight + verticalGap);
+
           ctx.drawImage(img, x, y, photoWidth, photoHeight);
         }
       }
 
-      const layoutUrl = canvas.toDataURL();
+      // Convert the layout to a data URL
+      const layoutUrl = canvas.toDataURL("image/png");
       setLayoutImageUrl(layoutUrl);
       setStep(4);
     };
     img.src = croppedUrl;
   };
 
-  // 画像ダウンロードハンドラー
+  // Handle download
   const handleDownload = () => {
     if (layoutImageUrl) {
-      saveAs(layoutImageUrl, "証明写真_L判.png");
+      saveAs(layoutImageUrl, `証明写真_${selectedTemplate.name}_L判.png`);
     }
   };
 
-  // 境界制約を処理するトランスフォーマーのコールバック
+  // Handle transformer transform
   const handleTransform = () => {
     if (rectRef.current) {
       const rect = rectRef.current;
-      const template = PHOTO_TEMPLATES[cropRect.templateKey];
+      const template = PHOTO_TEMPLATES_PX[cropRect.templateKey];
 
-      // アスペクト比を維持
-      const aspectRatio = template.width / template.height;
-      const newWidth = Math.max(100, rect.width());
+      // Maintain aspect ratio
+      const aspectRatio = template.widthPx / template.heightPx;
+
+      // Get current scale and size
+      const width = rect.width() * rect.scaleX();
+      const height = width / aspectRatio;
+
+      // Update rectangle with new dimensions
       rect.setAttrs({
-        width: newWidth,
-        height: newWidth / aspectRatio,
+        width: width,
+        height: height,
         scaleX: 1,
         scaleY: 1,
       });
 
-      // 新しい位置とサイズでcropRectを更新
+      // Update cropRect state
       setCropRect({
         ...cropRect,
         x: rect.x(),
         y: rect.y(),
-        width: rect.width(),
-        height: rect.height(),
+        width: width,
+        height: height,
       });
     }
   };
 
-  // 前のステップに戻る
+  // Handle going back
   const handleBack = () => {
     if (step > 1) {
       setStep(step - 1);
     }
   };
 
-  // 最初に戻るハンドラー
+  // Handle reset
   const handleReset = () => {
     setImage(null);
     setSelectedTemplate(null);
@@ -265,19 +288,21 @@ const App = () => {
     setStep(1);
   };
 
-  // 画像表示用のサイズを計算
+  // Calculate display dimensions for Stage
   const calculateDisplayDimensions = (img, maxWidth, maxHeight) => {
     if (!img) return { width: 0, height: 0 };
 
     let width = img.width;
     let height = img.height;
 
+    // Scale down if larger than maxWidth
     if (width > maxWidth) {
       const ratio = maxWidth / width;
       width = maxWidth;
       height = height * ratio;
     }
 
+    // Scale down further if still larger than maxHeight
     if (height > maxHeight) {
       const ratio = maxHeight / height;
       height = maxHeight;
@@ -287,7 +312,7 @@ const App = () => {
     return { width, height };
   };
 
-  // ステージサイズの計算
+  // Calculate stage size
   const stageSize = image
     ? calculateDisplayDimensions(image, 800, 600)
     : { width: 0, height: 0 };
@@ -377,13 +402,26 @@ const App = () => {
                 <Transformer
                   ref={transformerRef}
                   boundBoxFunc={(oldBox, newBox) => {
-                    // 最小サイズを設定
+                    // Set minimum size
                     if (newBox.width < 30 || newBox.height < 30) {
                       return oldBox;
                     }
+
+                    // Maintain aspect ratio
+                    const template = PHOTO_TEMPLATES_PX[cropRect.templateKey];
+                    const aspectRatio = template.widthPx / template.heightPx;
+
+                    newBox.height = newBox.width / aspectRatio;
+
                     return newBox;
                   }}
-                  keepRatio={true}
+                  enabledAnchors={[
+                    "top-left",
+                    "top-right",
+                    "bottom-left",
+                    "bottom-right",
+                  ]}
+                  rotateEnabled={false}
                 />
               </Layer>
             </Stage>
@@ -413,6 +451,9 @@ const App = () => {
                 alt="クロップした証明写真"
                 className="result-img"
               />
+              <p className="photo-info">
+                {selectedTemplate?.description} 規格サイズ
+              </p>
             </div>
             <div className="layout-image-container">
               <h3>L判レイアウト</h3>
