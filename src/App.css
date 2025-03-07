@@ -184,3 +184,14 @@ input[type="file"] {
     width: 80%;
   }
 }
+
+/* App.cssに追加 */
+.layout-image-container h3 {
+  margin-bottom: 15px;
+  color: #2c3e50;
+}
+
+.result-img {
+  border: 1px solid #ddd;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}

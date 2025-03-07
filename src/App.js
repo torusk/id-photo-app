@@ -31,10 +31,10 @@ const PHOTO_TEMPLATES = {
   },
 };
 
-// L判サイズ（mm→px、300dpiで計算）
+// L判サイズ定義（300dpi換算）
 const L_SIZE = {
-  width: 1050, // 89mm × 300dpi / 25.4
-  height: 1500, // 127mm × 300dpi / 25.4
+  width: 1050, // 89mm × 300dpi / 25.4 ≈ 1050px
+  height: 1500, // 127mm × 300dpi / 25.4 ≈ 1500px
 };
 
 const App = () => {
@@ -138,50 +138,59 @@ const App = () => {
     generateLayout(croppedUrl);
   };
 
-  // L判レイアウト生成
+  // 生成レイアウト関数の修正
   const generateLayout = (croppedUrl) => {
     const canvas = document.createElement("canvas");
     canvas.width = L_SIZE.width;
     canvas.height = L_SIZE.height;
     const ctx = canvas.getContext("2d");
 
-    // 背景を白に
+    // 背景を白に設定
     ctx.fillStyle = "white";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // クロップした画像を読み込む
     const img = new window.Image();
     img.onload = () => {
-      // 4枚配置のレイアウト計算
-      const padding = 50;
-      const photoWidth = (L_SIZE.width - padding * 3) / 2;
-      const photoHeight = (photoWidth / img.width) * img.height;
+      // テンプレート基準のサイズを取得
+      const template = PHOTO_TEMPLATES[cropRect.templateKey];
+
+      // アスペクト比を維持しつつL判内に収まる最大サイズを計算
+      const maxCols = 2; // 1行あたり2枚
+      const maxRows = 2; // 2行
+
+      // 余白計算（Lサイズ全体の5%を余白として確保）
+      const totalMarginX = L_SIZE.width * 0.05;
+      const totalMarginY = L_SIZE.height * 0.05;
+
+      // 1枚あたりの利用可能領域
+      const availableWidth = (L_SIZE.width - totalMarginX) / maxCols;
+      const availableHeight = (L_SIZE.height - totalMarginY) / maxRows;
+
+      // テンプレートのアスペクト比
+      const templateAspect = template.width / template.height;
+
+      // 利用可能領域に収まるようにサイズ調整
+      let photoWidth = Math.min(availableWidth, template.width);
+      let photoHeight = photoWidth / templateAspect;
+
+      if (photoHeight > availableHeight) {
+        photoHeight = availableHeight;
+        photoWidth = photoHeight * templateAspect;
+      }
+
+      // マージン再計算
+      const marginX = (L_SIZE.width - photoWidth * maxCols) / (maxCols + 1);
+      const marginY = (L_SIZE.height - photoHeight * maxRows) / (maxRows + 1);
 
       // 4枚配置
-      ctx.drawImage(img, padding, padding, photoWidth, photoHeight);
-      ctx.drawImage(
-        img,
-        padding * 2 + photoWidth,
-        padding,
-        photoWidth,
-        photoHeight
-      );
-      ctx.drawImage(
-        img,
-        padding,
-        padding * 2 + photoHeight,
-        photoWidth,
-        photoHeight
-      );
-      ctx.drawImage(
-        img,
-        padding * 2 + photoWidth,
-        padding * 2 + photoHeight,
-        photoWidth,
-        photoHeight
-      );
+      [0, 1].forEach((col) => {
+        [0, 1].forEach((row) => {
+          const x = marginX + (photoWidth + marginX) * col;
+          const y = marginY + (photoHeight + marginY) * row;
+          ctx.drawImage(img, x, y, photoWidth, photoHeight);
+        });
+      });
 
-      // 最終画像をURLに変換
       const layoutUrl = canvas.toDataURL();
       setLayoutImageUrl(layoutUrl);
       setStep(4);
