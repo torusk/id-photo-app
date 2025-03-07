@@ -185,7 +185,7 @@ input[type="file"] {
   }
 }
 
-/* App.cssに追加 */
+/* レイアウトイメージのスタイル */
 .layout-image-container h3 {
   margin-bottom: 15px;
   color: #2c3e50;
@@ -194,4 +194,18 @@ input[type="file"] {
 .result-img {
   border: 1px solid #ddd;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 画像の向き表示 */
+.image-orientation {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #7f8c8d;
+}
+
+/* レイアウトプレビュー */
+.layout-preview {
+  margin-top: 15px;
+  font-style: italic;
+  color: #7f8c8d;
 }

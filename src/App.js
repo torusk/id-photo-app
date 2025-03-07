@@ -44,6 +44,7 @@ const App = () => {
   const [croppedImageUrl, setCroppedImageUrl] = useState(null);
   const [layoutImageUrl, setLayoutImageUrl] = useState(null);
   const [step, setStep] = useState(1); // 1: 画像アップロード, 2: テンプレート選択, 3: クロップ, 4: 結果表示
+  const [imageOrientation, setImageOrientation] = useState(null); // 'portrait' または 'landscape'
 
   const imageRef = useRef(null);
   const rectRef = useRef(null);
@@ -68,6 +69,9 @@ const App = () => {
       const img = new window.Image();
       img.src = reader.result;
       img.onload = () => {
+        // 画像の向きを設定
+        const orientation = img.width > img.height ? "landscape" : "portrait";
+        setImageOrientation(orientation);
         setImage(img);
         setStep(2);
       };
@@ -138,7 +142,7 @@ const App = () => {
     generateLayout(croppedUrl);
   };
 
-  // 生成レイアウト関数の修正
+  // L判レイアウト生成関数
   const generateLayout = (croppedUrl) => {
     const canvas = document.createElement("canvas");
     canvas.width = L_SIZE.width;
@@ -153,43 +157,54 @@ const App = () => {
     img.onload = () => {
       // テンプレート基準のサイズを取得
       const template = PHOTO_TEMPLATES[cropRect.templateKey];
+      const photoAspectRatio = template.width / template.height;
 
-      // アスペクト比を維持しつつL判内に収まる最大サイズを計算
-      const maxCols = 2; // 1行あたり2枚
-      const maxRows = 2; // 2行
+      // レイアウト設計
+      // L判の向きに応じた最適な配置を計算
+      let photoWidth, photoHeight, cols, rows;
 
-      // 余白計算（Lサイズ全体の5%を余白として確保）
-      const totalMarginX = L_SIZE.width * 0.05;
-      const totalMarginY = L_SIZE.height * 0.05;
+      // L判は常に縦向き (width < height)
+      const lSizeAspectRatio = L_SIZE.width / L_SIZE.height; // < 1 for portrait
 
-      // 1枚あたりの利用可能領域
-      const availableWidth = (L_SIZE.width - totalMarginX) / maxCols;
-      const availableHeight = (L_SIZE.height - totalMarginY) / maxRows;
+      // 画像のアスペクト比に基づいて最適な配置を決定
+      if (photoAspectRatio < 1) {
+        // 証明写真が縦長の場合
+        // L判に合わせて最大サイズを計算 (余白10%を確保)
+        const maxHeight = L_SIZE.height * 0.45; // 縦に2枚入るように
+        photoHeight = maxHeight;
+        photoWidth = photoHeight * photoAspectRatio;
 
-      // テンプレートのアスペクト比
-      const templateAspect = template.width / template.height;
+        // 縦2段、横は最大で何枚入るか計算
+        cols = Math.floor((L_SIZE.width * 0.9) / photoWidth);
+        cols = Math.min(cols, 2); // 最大2列まで
+        rows = 2;
+      } else {
+        // 証明写真が横長の場合 (珍しいが対応)
+        const maxWidth = L_SIZE.width * 0.45; // 横に2枚入るように
+        photoWidth = maxWidth;
+        photoHeight = photoWidth / photoAspectRatio;
 
-      // 利用可能領域に収まるようにサイズ調整
-      let photoWidth = Math.min(availableWidth, template.width);
-      let photoHeight = photoWidth / templateAspect;
-
-      if (photoHeight > availableHeight) {
-        photoHeight = availableHeight;
-        photoWidth = photoHeight * templateAspect;
+        // 横2列、縦は最大で何枚入るか計算
+        rows = Math.floor((L_SIZE.height * 0.9) / photoHeight);
+        rows = Math.min(rows, 2); // 最大2行まで
+        cols = 2;
       }
 
-      // マージン再計算
-      const marginX = (L_SIZE.width - photoWidth * maxCols) / (maxCols + 1);
-      const marginY = (L_SIZE.height - photoHeight * maxRows) / (maxRows + 1);
+      // 余白計算
+      const totalWidth = cols * photoWidth;
+      const totalHeight = rows * photoHeight;
 
-      // 4枚配置
-      [0, 1].forEach((col) => {
-        [0, 1].forEach((row) => {
+      const marginX = (L_SIZE.width - totalWidth) / (cols + 1);
+      const marginY = (L_SIZE.height - totalHeight) / (rows + 1);
+
+      // 画像を配置
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
           const x = marginX + (photoWidth + marginX) * col;
           const y = marginY + (photoHeight + marginY) * row;
           ctx.drawImage(img, x, y, photoWidth, photoHeight);
-        });
-      });
+        }
+      }
 
       const layoutUrl = canvas.toDataURL();
       setLayoutImageUrl(layoutUrl);
@@ -232,6 +247,13 @@ const App = () => {
     }
   };
 
+  // 前のステップに戻る
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(step - 1);
+    }
+  };
+
   // 最初に戻るハンドラー
   const handleReset = () => {
     setImage(null);
@@ -239,8 +261,36 @@ const App = () => {
     setCropRect(null);
     setCroppedImageUrl(null);
     setLayoutImageUrl(null);
+    setImageOrientation(null);
     setStep(1);
   };
+
+  // 画像表示用のサイズを計算
+  const calculateDisplayDimensions = (img, maxWidth, maxHeight) => {
+    if (!img) return { width: 0, height: 0 };
+
+    let width = img.width;
+    let height = img.height;
+
+    if (width > maxWidth) {
+      const ratio = maxWidth / width;
+      width = maxWidth;
+      height = height * ratio;
+    }
+
+    if (height > maxHeight) {
+      const ratio = maxHeight / height;
+      height = maxHeight;
+      width = width * ratio;
+    }
+
+    return { width, height };
+  };
+
+  // ステージサイズの計算
+  const stageSize = image
+    ? calculateDisplayDimensions(image, 800, 600)
+    : { width: 0, height: 0 };
 
   return (
     <div className="app-container">
@@ -252,6 +302,7 @@ const App = () => {
       {step === 1 && (
         <div className="upload-container">
           <h2>ステップ1: 画像をアップロード</h2>
+          <p>縦向き・横向きどちらの写真も対応しています。</p>
           <input type="file" accept="image/*" onChange={handleImageUpload} />
         </div>
       )}
@@ -259,6 +310,12 @@ const App = () => {
       {step === 2 && (
         <div className="template-container">
           <h2>ステップ2: 証明写真の種類を選択</h2>
+          {imageOrientation && (
+            <p className="image-orientation">
+              画像の向き:{" "}
+              {imageOrientation === "portrait" ? "縦向き" : "横向き"}
+            </p>
+          )}
           <div className="template-options">
             {Object.entries(PHOTO_TEMPLATES).map(([key, template]) => (
               <button
@@ -283,66 +340,40 @@ const App = () => {
           <p>赤枠の位置・サイズを調整して顔の位置を合わせてください。</p>
           <div className="stage-container">
             <Stage
-              width={Math.min(800, image.width)}
-              height={Math.min(
-                600,
-                image.height * (Math.min(800, image.width) / image.width)
-              )}
+              width={stageSize.width}
+              height={stageSize.height}
               ref={stageRef}
             >
               <Layer>
                 <KonvaImage
                   ref={imageRef}
                   image={image}
-                  width={Math.min(800, image.width)}
-                  height={Math.min(
-                    600,
-                    image.height * (Math.min(800, image.width) / image.width)
-                  )}
+                  width={stageSize.width}
+                  height={stageSize.height}
                 />
-                <Rect
-                  ref={rectRef}
-                  x={cropRect.x * (Math.min(800, image.width) / image.width)}
-                  y={
-                    cropRect.y *
-                    (Math.min(
-                      600,
-                      image.height * (Math.min(800, image.width) / image.width)
-                    ) /
-                      image.height)
-                  }
-                  width={
-                    cropRect.width * (Math.min(800, image.width) / image.width)
-                  }
-                  height={
-                    cropRect.height *
-                    (Math.min(
-                      600,
-                      image.height * (Math.min(800, image.width) / image.width)
-                    ) /
-                      image.height)
-                  }
-                  stroke="red"
-                  strokeWidth={2}
-                  draggable
-                  onTransform={handleTransform}
-                  onDragEnd={() => {
-                    setCropRect({
-                      ...cropRect,
-                      x:
-                        rectRef.current.x() /
-                        (Math.min(800, image.width) / image.width),
-                      y:
-                        rectRef.current.y() /
-                        (Math.min(
-                          600,
-                          image.height *
-                            (Math.min(800, image.width) / image.width)
-                        ) /
-                          image.height),
-                    });
-                  }}
-                />
+                {cropRect && (
+                  <Rect
+                    ref={rectRef}
+                    x={cropRect.x * (stageSize.width / image.width)}
+                    y={cropRect.y * (stageSize.height / image.height)}
+                    width={cropRect.width * (stageSize.width / image.width)}
+                    height={cropRect.height * (stageSize.height / image.height)}
+                    stroke="red"
+                    strokeWidth={2}
+                    draggable
+                    onTransform={handleTransform}
+                    onDragEnd={() => {
+                      setCropRect({
+                        ...cropRect,
+                        x:
+                          rectRef.current.x() / (stageSize.width / image.width),
+                        y:
+                          rectRef.current.y() /
+                          (stageSize.height / image.height),
+                      });
+                    }}
+                  />
+                )}
                 <Transformer
                   ref={transformerRef}
                   boundBoxFunc={(oldBox, newBox) => {
@@ -361,7 +392,7 @@ const App = () => {
             <button onClick={handleCrop} className="crop-button">
               クロップ
             </button>
-            <button onClick={() => setStep(2)} className="back-button">
+            <button onClick={handleBack} className="back-button">
               戻る
             </button>
           </div>
@@ -390,6 +421,9 @@ const App = () => {
                 alt="L判レイアウト"
                 className="result-img"
               />
+              <p className="layout-preview">
+                L判（89mm×127mm）にちょうど収まるようレイアウトされています
+              </p>
             </div>
           </div>
           <div className="button-container">
