@@ -193,16 +193,23 @@ const App = () => {
         const photoHeight = templatePixels.heightPx;
         const cols = 2;
         const rows = 2;
-        const totalWidth = cols * photoWidth;
-        const totalHeight = rows * photoHeight;
+
+        // スペーシングを追加（ピクセル単位）
+        const spacing = 10;
+
+        // スペースを考慮した全体の幅と高さ
+        const totalWidth = cols * photoWidth + (cols - 1) * spacing;
+        const totalHeight = rows * photoHeight + (rows - 1) * spacing;
+
+        // 中央に配置するための開始位置
         const startX = (L_SIZE_PX.width - totalWidth) / 2;
         const startY = (L_SIZE_PX.height - totalHeight) / 2;
 
-        // 4枚配置
+        // 4枚配置（スペース付き）
         for (let row = 0; row < rows; row++) {
           for (let col = 0; col < cols; col++) {
-            const x = startX + col * photoWidth;
-            const y = startY + row * photoHeight;
+            const x = startX + col * (photoWidth + spacing);
+            const y = startY + row * (photoHeight + spacing);
             ctx.drawImage(img, x, y, photoWidth, photoHeight);
             ctx.strokeStyle = "#dddddd";
             ctx.strokeRect(x, y, photoWidth, photoHeight);
