@@ -73,7 +73,8 @@ const App = () => {
   const [selectedTemplate, setSelectedTemplate] = useState(
     PHOTO_TEMPLATES.resume
   );
-  const [outputFormat, setOutputFormat] = useState("image/jpeg");
+  // 出力形式を常にJPEGに設定（選択肢を提供しない）
+  const outputFormat = "image/jpeg";
   const [error, setError] = useState(null);
 
   // エラーハンドリング関数
@@ -251,9 +252,7 @@ const App = () => {
   // ダウンロード処理
   const handleDownload = () => {
     if (layoutImageUrl) {
-      const fileName = `証明写真_${selectedTemplate.name}_L判.${
-        outputFormat === "image/jpeg" ? "jpg" : "png"
-      }`;
+      const fileName = `証明写真_${selectedTemplate.name}_L判.jpg`;
       saveAs(layoutImageUrl, fileName);
     }
   };
@@ -271,11 +270,6 @@ const App = () => {
   // 前のステップに戻る
   const handleBack = () => {
     if (step > 1) setStep(step - 1);
-  };
-
-  // 出力形式の変更
-  const handleFormatChange = (format) => {
-    setOutputFormat(format);
   };
 
   // クロップ領域の更新
@@ -315,7 +309,6 @@ const App = () => {
             onDownload={handleDownload}
             onReset={handleReset}
             outputFormat={outputFormat}
-            onFormatChange={handleFormatChange}
           />
         );
       default:
