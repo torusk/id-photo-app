@@ -194,12 +194,17 @@ const App = () => {
         const cols = 2;
         const rows = 2;
 
+        // ==================== スペース設定の変更ここから ====================
         // スペーシングを追加（ピクセル単位）
-        const spacing = 10;
+        // 1cm = 約118ピクセル（@300DPI）
+        // ここの値を調整してスペースを変更できます
+        const spacingHorizontal = Math.round(mmToPixels(10)); // 1cm = 10mm
+        const spacingVertical = Math.round(mmToPixels(10)); // 1cm = 10mm
+        // ==================== スペース設定の変更ここまで ====================
 
         // スペースを考慮した全体の幅と高さ
-        const totalWidth = cols * photoWidth + (cols - 1) * spacing;
-        const totalHeight = rows * photoHeight + (rows - 1) * spacing;
+        const totalWidth = cols * photoWidth + (cols - 1) * spacingHorizontal;
+        const totalHeight = rows * photoHeight + (rows - 1) * spacingVertical;
 
         // 中央に配置するための開始位置
         const startX = (L_SIZE_PX.width - totalWidth) / 2;
@@ -208,9 +213,14 @@ const App = () => {
         // 4枚配置（スペース付き）
         for (let row = 0; row < rows; row++) {
           for (let col = 0; col < cols; col++) {
-            const x = startX + col * (photoWidth + spacing);
-            const y = startY + row * (photoHeight + spacing);
+            // 各写真の座標を計算（水平・垂直それぞれのスペースを考慮）
+            const x = startX + col * (photoWidth + spacingHorizontal);
+            const y = startY + row * (photoHeight + spacingVertical);
+
+            // 画像の描画
             ctx.drawImage(img, x, y, photoWidth, photoHeight);
+
+            // 枠線の描画
             ctx.strokeStyle = "#dddddd";
             ctx.strokeRect(x, y, photoWidth, photoHeight);
           }
