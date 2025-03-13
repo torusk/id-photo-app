@@ -10,6 +10,9 @@ import CropStep from "./components/CropStep";
 import ResultStep from "./components/ResultStep";
 import Loading from "./components/Loading";
 
+// src/App.js
+// テンプレート部分のみ表示します（他のコードは変更なし）
+
 // 証明写真テンプレートの定義
 export const PHOTO_TEMPLATES = {
   resume: {
@@ -19,23 +22,20 @@ export const PHOTO_TEMPLATES = {
     height: 40,
     description: "3.0cm×4.0cm",
   },
-  // 将来的に追加するテンプレート
-  /* 
-  passport: {
-    id: "passport",
-    name: "パスポート用",
+  license: {
+    id: "license",
+    name: "自動車運転免許用",
+    width: 24,
+    height: 30,
+    description: "2.4cm×3.0cm",
+  },
+  mynumber: {
+    id: "mynumber",
+    name: "マイナンバー用",
     width: 35,
     height: 45,
     description: "3.5cm×4.5cm",
   },
-  license: {
-    id: "license",
-    name: "運転免許証用",
-    width: 24,
-    height: 30,
-    description: "2.4cm×3.0cm",
-  }
-  */
 };
 
 // L判サイズの定義
