@@ -15,19 +15,19 @@ import Loading from "./components/Loading";
 
 // 証明写真テンプレートの定義
 export const PHOTO_TEMPLATES = {
-  resume: {
-    id: "resume",
-    name: "履歴書・TOEIC用",
-    width: 30,
-    height: 40,
-    description: "3.0cm×4.0cm",
-  },
   license: {
     id: "license",
     name: "自動車運転免許用",
     width: 24,
     height: 30,
     description: "2.4cm×3.0cm",
+  },
+  resume: {
+    id: "resume",
+    name: "履歴書・TOEIC用",
+    width: 30,
+    height: 40,
+    description: "3.0cm×4.0cm",
   },
   mynumber: {
     id: "mynumber",
