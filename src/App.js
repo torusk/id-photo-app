@@ -10,9 +10,6 @@ import CropStep from "./components/CropStep";
 import ResultStep from "./components/ResultStep";
 import Loading from "./components/Loading";
 
-// src/App.js
-// テンプレート部分のみ表示します（他のコードは変更なし）
-
 // 証明写真テンプレートの定義
 export const PHOTO_TEMPLATES = {
   license: {
