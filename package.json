@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "file-saver": "^2.0.5",
-    "konva": "^9.2.0",
+    "konva": "^9.3.19",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-konva": "^18.2.10",
