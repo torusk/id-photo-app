@@ -571,7 +571,7 @@ h3 {
   width: 100%;
   background-color: rgba(255, 255, 255, 0.95);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  padding: 10px 0;
+  padding: 15px 0;
   z-index: 1000;
   transition: all 0.3s ease;
 }
@@ -580,52 +580,72 @@ h3 {
   max-width: 800px;
   margin: 0 auto;
   display: flex;
-  justify-content: space-between;
+  justify-content: space-around;
   align-items: center;
   padding: 0 20px;
 }
 
 .step-item {
   display: flex;
+  flex-direction: column;
   align-items: center;
   position: relative;
   cursor: pointer;
   opacity: 0.5;
   transition: all 0.3s ease;
+  margin: 0 5px;
+  width: 23%;
 }
 
 .step-item.active {
   opacity: 1;
 }
 
-.step-number {
-  width: 30px;
-  height: 30px;
-  background-color: #ffed58;
-  border-radius: 50%;
+/* ペナント型のステップインジケーター */
+.step-pennant {
+  width: 40px;
+  height: 40px;
+  background-color: #e0e0e0;
+  clip-path: polygon(0 0, 100% 0, 100% 70%, 50% 100%, 0 70%);
   display: flex;
   justify-content: center;
   align-items: center;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.step-item.active .step-pennant {
+  background-color: #ffed58;
+}
+
+.step-number {
+  font-size: 16px;
   font-weight: bold;
-  margin-right: 8px;
+  position: relative;
+  top: -5px;
 }
 
 .step-title {
   font-size: 14px;
   font-weight: 500;
+  text-align: center;
+  width: 100%;
+  white-space: nowrap;
 }
 
-.step-connector {
+/* ステップ間の線は各ステップのアフターで実装 */
+.step-item:not(:last-child)::after {
+  content: "";
   position: absolute;
-  right: -35%;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 20px;
+  right: -50%;
+  width: 100%;
   height: 2px;
-  width: 70%;
   background-color: #e0e0e0;
+  z-index: -1;
 }
 
-.step-item.active .step-connector {
+.step-item.active:not(:last-child)::after {
   background-color: #ffed58;
 }
 
@@ -641,7 +661,7 @@ h3 {
 }
 
 .video-wrapper {
-  max-width: 700px;
+  max-width: 800px;
   margin: 30px auto;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
   border-radius: 10px;
@@ -680,19 +700,32 @@ h3 {
     padding: 8px 12px;
   }
 
-  .step-title {
-    font-size: 11px;
+  /* ヘッダーのレスポンシブ対応 */
+  .step-pennant {
+    width: 30px;
+    height: 30px;
   }
 
   .step-number {
-    width: 24px;
-    height: 24px;
-    font-size: 12px;
+    font-size: 14px;
+    top: -3px;
   }
 
-  .step-connector {
-    width: 50%;
-    right: -25%;
+  .step-title {
+    font-size: 10px;
+  }
+
+  .sticky-header {
+    padding: 10px 0;
+  }
+
+  .steps-indicator {
+    padding: 0 10px;
+  }
+
+  .step-item:not(:last-child)::after {
+    right: -30%;
+    width: 60%;
   }
 
   .video-intro-container {

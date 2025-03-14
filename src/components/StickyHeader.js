@@ -19,9 +19,10 @@ const StickyHeader = ({ activeStep, onStepClick }) => {
             className={`step-item ${activeStep >= step.id ? "active" : ""}`}
             onClick={() => onStepClick(step.id)}
           >
-            <div className="step-number">{step.id}</div>
+            <div className="step-pennant">
+              <span className="step-number">{step.id}</span>
+            </div>
             <div className="step-title">{step.title}</div>
-            {step.id < steps.length && <div className="step-connector"></div>}
           </div>
         ))}
       </div>

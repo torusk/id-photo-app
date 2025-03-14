@@ -8,7 +8,6 @@ import TemplateStep from "./components/TemplateStep";
 import UploadStep from "./components/UploadStep";
 import CropStep from "./components/CropStep";
 import ResultStep from "./components/ResultStep";
-import FlowGuide from "./components/FlowGuide";
 import StickyHeader from "./components/StickyHeader";
 import VideoIntro from "./components/VideoIntro";
 import Loading from "./components/Loading";
@@ -337,9 +336,6 @@ const App = () => {
 
       {/* 動画紹介セクション */}
       <VideoIntro />
-
-      {/* 利用の流れガイド */}
-      <FlowGuide activeStep={activeStep} />
 
       {/* STEP 1: テンプレート選択 */}
       <div
