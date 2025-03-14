@@ -10,6 +10,7 @@ import CropStep from "./components/CropStep";
 import ResultStep from "./components/ResultStep";
 import StickyHeader from "./components/StickyHeader";
 import VideoIntro from "./components/VideoIntro";
+import ScrollButton from "./components/ScrollButton";
 import Loading from "./components/Loading";
 
 // 証明写真テンプレートの定義
@@ -349,6 +350,9 @@ const App = () => {
           isActive={activeStep >= 1}
         />
       </div>
+
+      {/* スクロールボタン */}
+      <ScrollButton />
 
       {/* STEP 2: 画像アップロード */}
       <div
