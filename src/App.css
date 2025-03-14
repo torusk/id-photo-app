@@ -690,10 +690,11 @@ h3 {
   position: fixed;
   bottom: 30px;
   right: 30px;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.9);
+  width: 100px; /* 倍のサイズに変更 */
+  height: 100px; /* 倍のサイズに変更 */
+  /* ペナント型の形状に変更 */
+  clip-path: polygon(0 0, 100% 0, 100% 70%, 50% 100%, 0 70%);
+  background-color: #ffed58; /* 最初から黄色に設定 */
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   border: none;
   display: flex;
@@ -716,8 +717,15 @@ h3 {
 }
 
 .scroll-down-button:hover {
-  background-color: #ffed58;
+  background-color: #ffe924; /* ホバー時は少し濃い黄色に */
   transform: translateY(-2px);
+}
+
+.scroll-down-button svg {
+  width: 40px; /* SVGアイコンも大きく */
+  height: 40px;
+  position: relative;
+  top: -10px; /* 少し上に調整 */
 }
 
 @keyframes pulse {

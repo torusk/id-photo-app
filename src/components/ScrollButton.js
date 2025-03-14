@@ -26,10 +26,35 @@ const ScrollButton = () => {
 
   // 次のセクションへスクロール
   const scrollDown = () => {
-    window.scrollBy({
-      top: window.innerHeight / 2, // 画面の半分の高さだけスクロール
-      behavior: "smooth",
-    });
+    // 現在位置を取得
+    const currentPos = window.scrollY;
+    const windowHeight = window.innerHeight;
+
+    // 各セクションの位置を取得
+    const sections = document.querySelectorAll(".section-container");
+    let targetSection = null;
+
+    // 次のセクションを見つける
+    for (let i = 0; i < sections.length; i++) {
+      const sectionTop =
+        sections[i].getBoundingClientRect().top + window.scrollY;
+      if (sectionTop > currentPos + 10) {
+        // 少し余裕を持たせる
+        targetSection = sections[i];
+        break;
+      }
+    }
+
+    // 次のセクションが見つかった場合、そこへスクロール
+    if (targetSection) {
+      targetSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      // 次のセクションが見つからない場合、少し下へスクロール
+      window.scrollBy({
+        top: windowHeight / 2,
+        behavior: "smooth",
+      });
+    }
   };
 
   return (
