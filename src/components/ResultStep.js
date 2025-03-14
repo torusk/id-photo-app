@@ -8,6 +8,7 @@ const ResultStep = ({
   onDownload,
   onReset,
   outputFormat,
+  isActive,
 }) => {
   const [scale, setScale] = useState(1);
   const containerRef = useRef(null);
@@ -46,12 +47,18 @@ const ResultStep = ({
     return () => window.removeEventListener("resize", updateScale);
   }, [lWidthMm]);
 
+  // 非アクティブな場合は表示しない
+  if (!isActive) return null;
+
   return (
-    <div className="result-container">
-      <h2>ステップ4: 証明写真の完成</h2>
+    <div
+      className={`result-container ${isActive ? "active" : ""}`}
+      ref={containerRef}
+    >
+      <h2 className="section-title">ステップ4: 証明写真の完成</h2>
 
       {layoutImageUrl && (
-        <div className="result-images" ref={containerRef}>
+        <div className="result-images">
           <div className="layout-image">
             <div
               className="actual-size-container"

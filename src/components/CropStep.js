@@ -15,6 +15,7 @@ const CropStep = ({
   onCrop,
   onBack,
   template,
+  isActive,
 }) => {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
@@ -132,9 +133,15 @@ const CropStep = ({
 
   const stageCropRect = getStageCropRect();
 
+  // 非アクティブな場合は表示しない
+  if (!isActive) return null;
+
   return (
-    <div className="crop-container" ref={containerRef}>
-      <h2>ステップ3: 顔の位置を調整</h2>
+    <div
+      className={`crop-container ${isActive ? "active" : ""}`}
+      ref={containerRef}
+    >
+      <h2 className="section-title">ステップ3: 顔の位置を調整</h2>
       <p>
         {template.name}（{template.description}
         ）用に写真の位置を調整してください。

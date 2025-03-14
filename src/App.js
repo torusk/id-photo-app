@@ -1,13 +1,14 @@
 // src/App.js
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { saveAs } from "file-saver";
 import "./App.css";
 
 // コンポーネントをインポート
-import UploadStep from "./components/UploadStep";
 import TemplateStep from "./components/TemplateStep";
+import UploadStep from "./components/UploadStep";
 import CropStep from "./components/CropStep";
 import ResultStep from "./components/ResultStep";
+import FlowGuide from "./components/FlowGuide";
 import Loading from "./components/Loading";
 
 // 証明写真テンプレートの定義
@@ -65,14 +66,18 @@ const App = () => {
   const [cropRect, setCropRect] = useState(null);
   const [croppedImageUrl, setCroppedImageUrl] = useState(null);
   const [layoutImageUrl, setLayoutImageUrl] = useState(null);
-  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState(
-    PHOTO_TEMPLATES.resume
-  );
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
   // 出力形式を常にJPEGに設定（選択肢を提供しない）
   const outputFormat = "image/jpeg";
   const [error, setError] = useState(null);
+  const [activeStep, setActiveStep] = useState(1);
+
+  // セクション参照用のRef
+  const templateSectionRef = useRef(null);
+  const uploadSectionRef = useRef(null);
+  const cropSectionRef = useRef(null);
+  const resultSectionRef = useRef(null);
 
   // エラーハンドリング関数
   const handleError = (errorMessage) => {
@@ -82,7 +87,7 @@ const App = () => {
 
   // 画像アップロード処理
   const handleImageUpload = (file) => {
-    if (!file) return;
+    if (!file || !selectedTemplate) return;
 
     setLoading(true);
     setError(null);
@@ -93,8 +98,33 @@ const App = () => {
       img.src = reader.result;
       img.onload = () => {
         setImage(img);
-        setStep(2);
+        setActiveStep(3);
         setLoading(false);
+
+        // クロップ領域の初期設定
+        const templatePixels = getTemplatePixels(selectedTemplate);
+        const imgWidth = img.width;
+        const imgHeight = img.height;
+        const aspectRatio = templatePixels.widthPx / templatePixels.heightPx;
+
+        let cropWidth, cropHeight;
+        if (imgWidth / imgHeight > aspectRatio) {
+          cropHeight = imgHeight * 0.8;
+          cropWidth = cropHeight * aspectRatio;
+        } else {
+          cropWidth = imgWidth * 0.8;
+          cropHeight = cropWidth / aspectRatio;
+        }
+
+        setCropRect({
+          x: imgWidth / 2 - cropWidth / 2,
+          y: imgHeight / 2 - cropHeight / 2,
+          width: cropWidth,
+          height: cropHeight,
+        });
+
+        // クロップセクションへスクロール
+        scrollToSection(cropSectionRef);
       };
       img.onerror = () => {
         handleError("画像の読み込みに失敗しました。別の画像を試してください。");
@@ -112,29 +142,10 @@ const App = () => {
   const handleTemplateSelect = (templateId) => {
     const template = PHOTO_TEMPLATES[templateId];
     setSelectedTemplate(template);
+    setActiveStep(2);
 
-    // クロップ領域の初期設定
-    const templatePixels = getTemplatePixels(template);
-    const imgWidth = image.width;
-    const imgHeight = image.height;
-    const aspectRatio = templatePixels.widthPx / templatePixels.heightPx;
-
-    let cropWidth, cropHeight;
-    if (imgWidth / imgHeight > aspectRatio) {
-      cropHeight = imgHeight * 0.8;
-      cropWidth = cropHeight * aspectRatio;
-    } else {
-      cropWidth = imgWidth * 0.8;
-      cropHeight = cropWidth / aspectRatio;
-    }
-
-    setCropRect({
-      x: imgWidth / 2 - cropWidth / 2,
-      y: imgHeight / 2 - cropHeight / 2,
-      width: cropWidth,
-      height: cropHeight,
-    });
-    setStep(3);
+    // アップロードセクションへスクロール
+    scrollToSection(uploadSectionRef);
   };
 
   // クロップ処理
@@ -192,13 +203,9 @@ const App = () => {
         const cols = 2;
         const rows = 2;
 
-        // ==================== スペース設定の変更ここから ====================
         // スペーシングを追加（ピクセル単位）
-        // 1cm = 約118ピクセル（@300DPI）
-        // ここの値を調整してスペースを変更できます
         const spacingHorizontal = Math.round(mmToPixels(10)); // 1cm = 10mm
         const spacingVertical = Math.round(mmToPixels(10)); // 1cm = 10mm
-        // ==================== スペース設定の変更ここまで ====================
 
         // スペースを考慮した全体の幅と高さ
         const totalWidth = cols * photoWidth + (cols - 1) * spacingHorizontal;
@@ -234,8 +241,11 @@ const App = () => {
         );
 
         setLayoutImageUrl(canvas.toDataURL(outputFormat, 0.9));
-        setStep(4);
+        setActiveStep(4);
         setLoading(false);
+
+        // 結果セクションへスクロール
+        scrollToSection(resultSectionRef);
       };
       img.onerror = () => {
         handleError("レイアウト生成中にエラーが発生しました。");
@@ -260,13 +270,12 @@ const App = () => {
     setCropRect(null);
     setCroppedImageUrl(null);
     setLayoutImageUrl(null);
-    setStep(1);
+    setSelectedTemplate(null);
+    setActiveStep(1);
     setError(null);
-  };
 
-  // 前のステップに戻る
-  const handleBack = () => {
-    if (step > 1) setStep(step - 1);
+    // テンプレート選択セクションへスクロール
+    scrollToSection(templateSectionRef);
   };
 
   // クロップ領域の更新
@@ -274,42 +283,25 @@ const App = () => {
     setCropRect(newCropRect);
   };
 
-  // ステップに応じたコンポーネントを表示
-  const renderStep = () => {
-    switch (step) {
-      case 1:
-        return <UploadStep onImageUpload={handleImageUpload} />;
-      case 2:
-        return (
-          <TemplateStep
-            templates={PHOTO_TEMPLATES}
-            onTemplateSelect={handleTemplateSelect}
-            onBack={handleReset}
-          />
-        );
-      case 3:
-        return (
-          <CropStep
-            image={image}
-            cropRect={cropRect}
-            updateCropRect={updateCropRect}
-            onCrop={handleCrop}
-            onBack={handleBack}
-            template={selectedTemplate}
-          />
-        );
-      case 4:
-        return (
-          <ResultStep
-            layoutImageUrl={layoutImageUrl}
-            template={selectedTemplate}
-            onDownload={handleDownload}
-            onReset={handleReset}
-            outputFormat={outputFormat}
-          />
-        );
-      default:
-        return <UploadStep onImageUpload={handleImageUpload} />;
+  // セクションへのスクロール関数
+  const scrollToSection = (ref) => {
+    if (ref && ref.current) {
+      ref.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  };
+
+  // 前のステップに戻る
+  const handleBack = (step) => {
+    if (step >= 1) {
+      setActiveStep(step);
+
+      // 対応するセクションにスクロール
+      if (step === 1) scrollToSection(templateSectionRef);
+      else if (step === 2) scrollToSection(uploadSectionRef);
+      else if (step === 3) scrollToSection(cropSectionRef);
     }
   };
 
@@ -322,7 +314,73 @@ const App = () => {
 
       {error && <div className="error-message">{error}</div>}
       {loading && <Loading />}
-      {!loading && renderStep()}
+
+      {/* 利用の流れガイド */}
+      <FlowGuide activeStep={activeStep} />
+
+      {/* STEP 1: テンプレート選択 */}
+      <div
+        ref={templateSectionRef}
+        id="template-section"
+        className="section-container"
+      >
+        <TemplateStep
+          templates={PHOTO_TEMPLATES}
+          onTemplateSelect={handleTemplateSelect}
+          isActive={activeStep >= 1}
+        />
+      </div>
+
+      {/* STEP 2: 画像アップロード */}
+      <div
+        ref={uploadSectionRef}
+        id="upload-section"
+        className="section-container"
+      >
+        <UploadStep
+          onImageUpload={handleImageUpload}
+          onBack={() => handleBack(1)}
+          isActive={activeStep >= 2}
+          selectedTemplate={selectedTemplate}
+        />
+      </div>
+
+      {/* STEP 3: 画像クロップ */}
+      {image && selectedTemplate && (
+        <div
+          ref={cropSectionRef}
+          id="crop-section"
+          className="section-container"
+        >
+          <CropStep
+            image={image}
+            cropRect={cropRect}
+            updateCropRect={updateCropRect}
+            onCrop={handleCrop}
+            onBack={() => handleBack(2)}
+            template={selectedTemplate}
+            isActive={activeStep >= 3}
+          />
+        </div>
+      )}
+
+      {/* STEP 4: 結果表示 */}
+      {layoutImageUrl && (
+        <div
+          ref={resultSectionRef}
+          id="result-section"
+          className="section-container"
+        >
+          <ResultStep
+            layoutImageUrl={layoutImageUrl}
+            template={selectedTemplate}
+            onDownload={handleDownload}
+            onReset={handleReset}
+            outputFormat={outputFormat}
+            isActive={activeStep >= 4}
+          />
+        </div>
+      )}
     </div>
   );
 };

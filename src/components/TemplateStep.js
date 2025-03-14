@@ -1,10 +1,10 @@
 // src/components/TemplateStep.js
 import React from "react";
 
-const TemplateStep = ({ templates, onTemplateSelect, onBack }) => {
+const TemplateStep = ({ templates, onTemplateSelect, isActive }) => {
   return (
-    <div className="template-container">
-      <h2>ステップ2: 証明写真の種類を選択</h2>
+    <div className={`template-container ${isActive ? "active" : ""}`}>
+      <h2 className="section-title">ステップ1: 証明写真の種類を選択</h2>
       <p>作成したい証明写真の種類を選んでください</p>
 
       <div className="templates-grid">
@@ -22,12 +22,6 @@ const TemplateStep = ({ templates, onTemplateSelect, onBack }) => {
             </button>
           );
         })}
-      </div>
-
-      <div className="button-container">
-        <button onClick={onBack} className="back-button">
-          戻る
-        </button>
       </div>
     </div>
   );

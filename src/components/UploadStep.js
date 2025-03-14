@@ -1,7 +1,7 @@
 // src/components/UploadStep.js
 import React, { useRef } from "react";
 
-const UploadStep = ({ onImageUpload }) => {
+const UploadStep = ({ onImageUpload, onBack, isActive, selectedTemplate }) => {
   const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
@@ -29,14 +29,20 @@ const UploadStep = ({ onImageUpload }) => {
     fileInputRef.current.click();
   };
 
+  // 選択されていない場合は表示しない
+  if (!selectedTemplate) return null;
+
   return (
     <div
-      className="upload-container"
+      className={`upload-container ${isActive ? "active" : ""}`}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      <h2>ステップ1: 画像をアップロード</h2>
-      <p>証明写真用の画像をアップロードしてください</p>
+      <h2 className="section-title">ステップ2: 画像をアップロード</h2>
+      <p>
+        {selectedTemplate.name}（{selectedTemplate.description}
+        ）用の画像をアップロードしてください
+      </p>
 
       <div className="upload-area" onClick={handleUploadClick}>
         <i className="upload-icon">📁</i>
@@ -61,6 +67,12 @@ const UploadStep = ({ onImageUpload }) => {
           <li>なるべく無地の背景を使用してください</li>
           <li>高解像度の写真を使用すると品質が向上します</li>
         </ul>
+      </div>
+
+      <div className="button-container">
+        <button onClick={onBack} className="back-button">
+          戻る
+        </button>
       </div>
     </div>
   );
