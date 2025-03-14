@@ -11,12 +11,14 @@ body {
   line-height: 1.6;
   color: #333;
   background-color: #f7f9fc;
+  scroll-behavior: smooth;
 }
 
 .app-container {
   max-width: 1000px;
   margin: 0 auto;
   padding: 20px;
+  padding-top: 0; /* ヘッダー分のスペースを確保 */
 }
 
 h1 {
@@ -24,6 +26,7 @@ h1 {
   color: #2c3e50;
   margin-bottom: 10px;
   font-size: 1.8rem;
+  padding-top: 70px; /* 追随ヘッダーの高さ分余白を追加 */
 }
 
 h2 {
@@ -107,7 +110,7 @@ h3 {
 /* セクション共通スタイル */
 .section-container {
   margin-bottom: 30px;
-  scroll-margin-top: 20px; /* スクロール時にヘッダーに被らないようにする */
+  scroll-margin-top: 100px; /* スクロール時にヘッダーに被らないようにする */
 }
 
 /* セクションタイトル */
@@ -560,6 +563,108 @@ h3 {
   }
 }
 
+/* 追随型ヘッダー */
+.sticky-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 10px 0;
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.steps-indicator {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  position: relative;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: all 0.3s ease;
+}
+
+.step-item.active {
+  opacity: 1;
+}
+
+.step-number {
+  width: 30px;
+  height: 30px;
+  background-color: #ffed58;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+.step-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.step-connector {
+  position: absolute;
+  right: -35%;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 2px;
+  width: 70%;
+  background-color: #e0e0e0;
+}
+
+.step-item.active .step-connector {
+  background-color: #ffed58;
+}
+
+/* 動画紹介セクション */
+.video-intro-container {
+  background-color: white;
+  clip-path: polygon(0 0, 100% 0, 100% 90%, 0 100%);
+  padding: 50px 20px 80px;
+  margin-bottom: 60px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.video-wrapper {
+  max-width: 700px;
+  margin: 30px auto;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  padding-top: 56.25%; /* 16:9のアスペクト比 */
+}
+
+.intro-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.video-description {
+  max-width: 700px;
+  margin: 20px auto;
+  line-height: 1.8;
+}
+
 /* レスポンシブ調整（追加分） */
 @media (max-width: 600px) {
   .actual-size-info {
@@ -573,5 +678,24 @@ h3 {
   .print-note {
     font-size: 12px;
     padding: 8px 12px;
+  }
+
+  .step-title {
+    font-size: 11px;
+  }
+
+  .step-number {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+
+  .step-connector {
+    width: 50%;
+    right: -25%;
+  }
+
+  .video-intro-container {
+    padding: 30px 15px 60px;
   }
 }

@@ -9,6 +9,8 @@ import UploadStep from "./components/UploadStep";
 import CropStep from "./components/CropStep";
 import ResultStep from "./components/ResultStep";
 import FlowGuide from "./components/FlowGuide";
+import StickyHeader from "./components/StickyHeader";
+import VideoIntro from "./components/VideoIntro";
 import Loading from "./components/Loading";
 
 // 証明写真テンプレートの定義
@@ -305,6 +307,21 @@ const App = () => {
     }
   };
 
+  // ステップクリック時のハンドラー
+  const handleStepClick = (stepId) => {
+    // 既に完了しているステップへのジャンプのみ許可
+    if (stepId <= activeStep) {
+      setActiveStep(stepId);
+
+      // 対応するセクションにスクロール
+      if (stepId === 1) scrollToSection(templateSectionRef);
+      else if (stepId === 2) scrollToSection(uploadSectionRef);
+      else if (stepId === 3 && image) scrollToSection(cropSectionRef);
+      else if (stepId === 4 && layoutImageUrl)
+        scrollToSection(resultSectionRef);
+    }
+  };
+
   return (
     <div className="app-container">
       <h1>証明写真作成アプリ</h1>
@@ -314,6 +331,12 @@ const App = () => {
 
       {error && <div className="error-message">{error}</div>}
       {loading && <Loading />}
+
+      {/* 追随型ヘッダー */}
+      <StickyHeader activeStep={activeStep} onStepClick={handleStepClick} />
+
+      {/* 動画紹介セクション */}
+      <VideoIntro />
 
       {/* 利用の流れガイド */}
       <FlowGuide activeStep={activeStep} />
